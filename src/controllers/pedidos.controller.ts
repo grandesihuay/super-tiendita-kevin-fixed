@@ -1,86 +1,116 @@
-import { Router } from "express";
+import { Request, Response, Router, NextFunction } from "express";
+import { PedidosModel } from "../models/pedidos.model.js";
 import {
-  obtenerPedidos,
-  obtenerPedidoPorId,
-  obtenerPedidosPorCliente,
-  crearPedido,
-  actualizarPedido,
-  eliminarPedido,
+CreatePedidoInput,
+UpdatePedidoInput
 } from "../models/pedidos.model.js";
 import { validate } from "../middlewares/validate.js";
-import { pedidoSchema, actualizarPedidoSchema } from "../schemas/pedidos.schema.js";
+import { pedidoSchema, UpdatePedidosSchema } from "../schemas/pedidos.schema.js";
 
 export const pedidosRouter = Router();
 
-pedidosRouter.get("/", async (req, res, next) => {
+export async function getPedidos(req: Request, res: Response) {
   try {
-    const pedidos = await obtenerPedidos();
-    res.json(pedidos);
+    const pedidos = await PedidosModel.findAll();
+    res.json({ totalPedidos: pedidos.length, data: pedidos});
   } catch (err) {
-    next(err);
-  }
-});
-
+   console.error("error al consultar PostgreSQL:", err);
+  res.status(500).json({ message: "error al intentar conectar a la base de datos :c" });
+  };
+}
 // BUG: esta ruta esta antes que "/cliente/:clienteId", asi que Express
 // hace match aqui primero y "cliente" termina tratado como si fuera un :id.
-pedidosRouter.get("/:id", async (req, res, next) => {
+export async function pedidosRouterById(req: Request, res: Response) {
   try {
     const id = Number(req.params.id);
-    const pedido = await obtenerPedidoPorId(id);
-    if (!pedido) {
-      res.status(404).json({ error: "Pedido no encontrado" });
+     if (isNaN(id)) {
+      res.status(400).json({ error: "el id debe ser numerico" });
       return;
     }
-    res.json(pedido);
-  } catch (err) {
-    next(err);
+    const product = await PedidosModel.findById(id);
+    if (!product) {
+      res.status(404).json({ error: "Pedido no encotnrado" });
+      return;
+    }
+    res.json({ data: product });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
-});
+};
 
-pedidosRouter.get("/cliente/:clienteId", async (req, res, next) => {
+export async function getPedidosPorCliente(req: Request, res: Response, next: NextFunction) {
   try {
     const clienteId = Number(req.params.clienteId);
-    const pedidos = await obtenerPedidosPorCliente(clienteId);
+    if (!Number.isInteger(clienteId) || clienteId <= 0) {
+      return res.status(400).json({ mensaje: "clienteId inválido" });
+    }
+    const pedidos = await PedidosModel.findByClienteId(clienteId);
     res.json(pedidos);
   } catch (err) {
     next(err);
   }
-});
+}
 
-pedidosRouter.post("/", validate(pedidoSchema), async (req, res, next) => {
+export async function postPedidos(req: Request, res: Response) {
   try {
-    const nuevoPedido = await crearPedido(req.body);
-    res.status(201).json(nuevoPedido);
-  } catch (err) {
-    next(err);
+    const result = pedidoSchema.safeParse(req.body);
+    console.log(result);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error.issues });
+    }
+    const newProduct = await PedidosModel.create(result.data);
+    res.status(201).json({ data: newProduct });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
-});
+}
 
-pedidosRouter.put("/:id", validate(actualizarPedidoSchema), async (req, res, next) => {
-  try {
+export async function putPedidos(req: Request, res: Response) {
+try {
     const id = Number(req.params.id);
-    // BUG: la funcion importada se llama "actualizarPedido", no "actualizarPedidos".
-    const pedido = await actualizarPedidos(id, req.body);
-    if (!pedido) {
-      res.status(404).json({ error: "Pedido no encontrado" });
+    if (isNaN(id)) {
+      res.status(400).json({ error: "EL ID DEBE SER UN VALOR NUMERICO" });
       return;
     }
-    res.json(pedido);
-  } catch (err) {
-    next(err);
-  }
-});
 
-pedidosRouter.delete("/:id", async (req, res, next) => {
-  try {
-    const id = Number(req.params.id);
-    const eliminado = await eliminarPedido(id);
-    if (!eliminado) {
-      res.status(404).json({ error: "Pedido no encontrado" });
+    const result = UpdatePedidosSchema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: result.error.issues });
       return;
     }
-    res.json({ message: "Pedido eliminado" });
-  } catch (err) {
-    next(err);
+
+    const productoUpdate = await PedidosModel.update(id, result.data);
+    if (!productoUpdate) {
+      res.status(404).json({ error: "producto no encontrado" });
+      return;
+    }
+    res.json({ data: productoUpdate });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
-});
+};
+
+export async function deletePedidos(req: Request, res: Response) {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "EL ID DEBE SER UN VALOR NUMERICO" });
+    }
+    const productEliminado = await PedidosModel.delete(id);
+    if (productEliminado) {
+      res.status(200).json({ message: "producto eliminado exitosamente" });
+    } else {
+      res.status(404).json({ message: "producto no encontrado" });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+pedidosRouter.get("/", getPedidos);
+pedidosRouter.get("/cliente/:clienteId", getPedidosPorCliente);
+pedidosRouter.get("/:id", pedidosRouterById);
+pedidosRouter.post("/", validate(pedidoSchema), postPedidos);
+pedidosRouter.put("/:id", putPedidos);
+pedidosRouter.delete("/:id", deletePedidos);
