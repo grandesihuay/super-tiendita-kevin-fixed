@@ -12,7 +12,9 @@ export const obtenerClientes = async (): Promise<Cliente[]> => {
   return result.rows;
 };
 
-export const obtenerClientePorId = async (id: number): Promise<Cliente | undefined> => {
+export const obtenerClientePorId = async (
+  id: number,
+): Promise<Cliente | undefined> => {
   const result = await pool.query("SELECT * FROM clientes WHERE id = $1", [id]);
   return result.rows[0];
 };
@@ -25,15 +27,15 @@ export const crearCliente = async (data: {
   // BUG: la columna "telefono" no esta en el INSERT, asi que aunque el
   // cliente la mande siempre se guarda como null.
   const result = await pool.query(
-    "INSERT INTO clientes (nombre, email) VALUES ($1, $2) RETURNING *",
-    [data.nombre, data.email, data.telefono ?? null]
+    "INSERT INTO clientes (nombre, email, telefono) VALUES ($1, $2, $3) RETURNING *",
+    [data.nombre, data.email, data.telefono ?? null],
   );
   return result.rows[0];
 };
 
 export const actualizarCliente = async (
   id: number,
-  data: Partial<{ nombre: string; email: string; telefono: string }>
+  data: Partial<{ nombre: string; email: string; telefono: string }>,
 ): Promise<Cliente | undefined> => {
   const actual = await obtenerClientePorId(id);
   if (!actual) return undefined;
@@ -44,7 +46,7 @@ export const actualizarCliente = async (
 
   const result = await pool.query(
     "UPDATE clientes SET nombre = $1, email = $2, telefono = $3 WHERE id = $4 RETURNING *",
-    [nombre, email, telefono, id]
+    [nombre, email, telefono, id],
   );
   return result.rows[0];
 };
