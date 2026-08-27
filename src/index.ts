@@ -16,7 +16,7 @@ const app = express();
 
 app.use(cors());
 // BUG: "jsonn" no existe en express, esto tumba el servidor al arrancar.
-app.use(express.jsonn());
+app.use(express.json());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

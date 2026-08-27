@@ -23,7 +23,7 @@ productosRouter.get("/", async (req, res, next) => {
 productosRouter.get("/:id", async (req, res, next) => {
   try {
     // BUG: el id llega por la URL (req.params), no por el body.
-    const id = Number((req.body as any).id);
+    const id = Number(req.params.id);
     const producto = await obtenerProductoPorId(id);
     if (!producto) {
       res.status(404).json({ error: "Producto no encontrado" });
@@ -48,7 +48,7 @@ productosRouter.put("/:id", validate(actualizarProductoSchema), async (req, res,
   try {
     const id = Number(req.params.id);
     // BUG: la funcion importada se llama "actualizarProducto", no "actualizarProducts".
-    const producto = await actualizarProducts(id, req.body);
+    const producto = await actualizarProducto(id, req.body);
     if (!producto) {
       res.status(404).json({ error: "Producto no encontrado" });
       return;

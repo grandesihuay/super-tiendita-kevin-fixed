@@ -15,7 +15,7 @@ export const obtenerProductos = async (): Promise<Producto[]> => {
 
 export const obtenerProductoPorId = async (id: number): Promise<Producto | undefined> => {
   // BUG: la columna se llama "id", no "i".
-  const result = await pool.query("SELECT * FROM productos WHERE i = $1", [id]);
+  const result = await pool.query("SELECT * FROM productos WHERE id = $1", [id]);
   return result.rows[0];
 };
 
@@ -26,7 +26,7 @@ export const crearProducto = async (data: {
   categoria_id: number;
 }): Promise<Producto> => {
   // BUG: falta el "await", asi que "result" es una Promise y no un QueryResult.
-  const result = pool.query(
+  const result = await pool.query(
     "INSERT INTO productos (nombre, precio, stock, categoria_id) VALUES ($1, $2, $3, $4) RETURNING *",
     [data.nombre, data.precio, data.stock, data.categoria_id]
   );
